@@ -25,7 +25,7 @@ class ControllerMonitor(context: Context) : InputManager.InputDeviceListener {
 
     private fun refresh() {
         val ids = inputManager.inputDeviceIds
-        connectedControllers = ids.mapNotNull { id ->
+        connectedControllers = ids.toList().mapNotNull { id ->
             val dev = inputManager.getInputDevice(id) ?: return@mapNotNull null
             if (isGameController(dev)) id else null
         }
