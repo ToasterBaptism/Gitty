@@ -52,6 +52,7 @@ class OverlayService : Service() {
     private var overlayView: VRGLView? = null
     private var headTracker: HeadTracker? = null
     private var virtualDisplay: VirtualDisplay? = null
+    private var mediaProjection: MediaProjection? = null
 
     private lateinit var repo: SettingsRepository
     private val serviceScope = CoroutineScope(Dispatchers.Main.immediate + Job())
@@ -110,6 +111,7 @@ class OverlayService : Service() {
         if (rc == -1 || data == null) return
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val projection = mpm.getMediaProjection(rc, data)
+        mediaProjection = projection
         val metrics = resources.displayMetrics
         createVirtualDisplay(metrics, projection)
     }
@@ -152,6 +154,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         virtualDisplay?.release()
+        mediaProjection?.stop()
         headTracker?.stop()
         overlayView?.let { windowManager.removeView(it) }
         overlayView = null
