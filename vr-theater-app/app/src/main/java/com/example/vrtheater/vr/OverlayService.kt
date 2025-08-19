@@ -115,18 +115,22 @@ class OverlayService : Service() {
 
     private fun createVirtualDisplay(metrics: DisplayMetrics, projection: android.media.projection.MediaProjection) {
         val view = overlayView ?: return
-        val surface = view.getInputSurface()
-        virtualDisplay = projection.createVirtualDisplay(
-            "vr-theater",
-            metrics.widthPixels,
-            metrics.heightPixels,
-            metrics.densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            surface,
-            null,
-            null
-        )
-        view.attachFrameSource()
+        // Ensure the GL side is ready before obtaining the surface
+        view.setOnSurfaceReady { surface ->
+            // Set default buffer size to avoid black frames on some devices
+            view.setDefaultBufferSize(metrics.widthPixels, metrics.heightPixels)
+            virtualDisplay = projection.createVirtualDisplay(
+                "vr-theater",
+                metrics.widthPixels,
+                metrics.heightPixels,
+                metrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                surface,
+                null,
+                null
+            )
+            view.attachFrameSource()
+        }
     }
 
     private fun observeSettings() {

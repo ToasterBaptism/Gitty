@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.core.content.getSystemService
+import androidx.activity.compose.BackHandler
 import com.example.vrtheater.launcher.GameScanner
 import com.example.vrtheater.settings.SettingsRepository
 import com.example.vrtheater.ui.LauncherScreen
@@ -42,10 +43,12 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 val games by remember { mutableStateOf(GameScanner.scanInstalledGames(this)) }
                 var projectionRunning by remember { mutableStateOf(false) }
-                var showSettings by remember { mutableStateOf(false) }
+                var showSettings by remember { mutableStateOf(intent?.getBooleanExtra("show_settings", false) == true) }
 
                 if (showSettings) {
+                    BackHandler { showSettings = false }
                     SettingsScreen(repo)
+                    LaunchedEffect(Unit) { intent?.removeExtra("show_settings") }
                 } else {
                     LauncherScreen(
                         context = this,
