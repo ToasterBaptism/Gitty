@@ -88,9 +88,7 @@ class VRRenderer {
         GLES20.glUniform1i(uOes, 0)
 
         // Pass SurfaceTexture transform
-        val buf = java.nio.ByteBuffer.allocateDirect(16 * 4).order(java.nio.ByteOrder.nativeOrder()).asFloatBuffer()
-        buf.put(st).position(0)
-        GLES20.glUniformMatrix4fv(uTexMatrix, 1, false, buf)
+        GLES20.glUniformMatrix4fv(uTexMatrix, 1, false, st, 0)
 
         GLES20.glUniform2f(uYawPitch, yaw, pitch)
         GLES20.glUniform1f(uScreenScale, screenScale)
@@ -204,7 +202,8 @@ class VRRenderer {
                 // Apply SurfaceTexture transform matrix to tuv
                 vec4 tex = uTexMatrix * vec4(tuv, 0.0, 1.0); 
                 vec2 texCoord = tex.xy; 
-                if (texCoord.x < 0.0 || texCoord.x > 1.0 || texCoord.y < 0.0 || texCoord.y > 1.0) discard; 
+                // Clamp instead of discard to avoid black borders on some devices
+                texCoord = clamp(texCoord, 0.001, 0.999);
                 gl_FragColor = texture2D(uOes, texCoord); 
             }
         """
