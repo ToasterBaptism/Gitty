@@ -171,7 +171,6 @@ class VRRenderer {
             uniform float uScreenScale; 
             uniform float uScreenTilt; 
             uniform vec2 uYawPitch; 
-            uniform mat4 uTexMatrix; 
             void main(){ 
                 vUv = aUv; 
                 float tilt = uScreenTilt; 

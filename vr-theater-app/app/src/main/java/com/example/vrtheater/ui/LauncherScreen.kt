@@ -25,7 +25,7 @@ fun LauncherScreen(
             Button(onClick = onStartProjection, enabled = !projectionRunning) { Text("Start Projection") }
             Button(onClick = onStopProjection, enabled = projectionRunning) { Text("Stop Projection") }
             Spacer(Modifier.width(8.dp))
-            Button(onClick = { context.startActivity(android.content.Intent(context, com.example.vrtheater.MainActivity::class.java).apply { addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK); putExtra("show_settings", true) }) }) { Text("Settings") }
+            Button(onClick = { context.startActivity(android.content.Intent(context, com.example.vrtheater.MainActivity::class.java).apply { putExtra("show_settings", true) }) }) { Text("Settings") }
         }
         Text("Controllers: ${controllers.connectedControllers.size}")
         Text("Installed Games")

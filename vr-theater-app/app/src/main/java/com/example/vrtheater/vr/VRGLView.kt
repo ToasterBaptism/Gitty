@@ -31,7 +31,7 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     init {
         setEGLContextClientVersion(2)
         setRenderer(this)
-        renderMode = RENDERMODE_CONTINUOUSLY
+        renderMode = RENDERMODE_WHEN_DIRTY
     }
 
     fun setHeadTracker(tracker: HeadTracker?) {
@@ -102,5 +102,20 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
         return tex[0]
+    }
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        queueEvent {
+            surfaceTexture?.setOnFrameAvailableListener(null)
+            surfaceTexture?.release()
+            inputSurface?.release()
+            inputSurface = null
+            surfaceTexture = null
+            if (oesTexId != 0) {
+                GLES20.glDeleteTextures(1, intArrayOf(oesTexId), 0)
+                oesTexId = 0
+            }
+        }
     }
 }

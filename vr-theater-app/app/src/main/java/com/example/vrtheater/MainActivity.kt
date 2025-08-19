@@ -26,6 +26,9 @@ import com.example.vrtheater.vr.OverlayService
 
 class MainActivity : ComponentActivity() {
 
+    private lateinit var controllerMonitor: ControllerMonitor
+
+
     private val mediaProjectionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         if (res.resultCode == RESULT_OK && res.data != null) {
             OverlayService.start(this, res.resultCode, res.data!!)
@@ -36,7 +39,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ensureNotificationChannel()
         val repo = SettingsRepository(this)
-        val controllerMonitor = com.example.vrtheater.vr.ControllerMonitor(this)
+        controllerMonitor = ControllerMonitor(this)
         controllerMonitor.start()
 
         setContent {
@@ -89,5 +92,10 @@ class MainActivity : ComponentActivity() {
             val ch = NotificationChannel(OverlayService.CHANNEL_ID, "VR Projection", NotificationManager.IMPORTANCE_LOW)
             mgr.createNotificationChannel(ch)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::controllerMonitor.isInitialized) controllerMonitor.stop()
     }
 }
