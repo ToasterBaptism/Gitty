@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.hardware.display.DisplayManager
 import android.hardware.display.VirtualDisplay
+import android.media.projection.MediaProjection
 import android.media.projection.MediaProjectionManager
 import android.os.Build
 import android.os.IBinder
@@ -51,6 +52,7 @@ class OverlayService : Service() {
     private var overlayView: VRGLView? = null
     private var headTracker: HeadTracker? = null
     private var virtualDisplay: VirtualDisplay? = null
+    private var mediaProjection: MediaProjection? = null
 
     private lateinit var repo: SettingsRepository
     private val serviceScope = CoroutineScope(Dispatchers.Main.immediate + Job())
@@ -109,24 +111,29 @@ class OverlayService : Service() {
         if (rc == -1 || data == null) return
         val mpm = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         val projection = mpm.getMediaProjection(rc, data)
+        mediaProjection = projection
         val metrics = resources.displayMetrics
         createVirtualDisplay(metrics, projection)
     }
 
-    private fun createVirtualDisplay(metrics: DisplayMetrics, projection: android.media.projection.MediaProjection) {
+    private fun createVirtualDisplay(metrics: DisplayMetrics, projection: MediaProjection) {
         val view = overlayView ?: return
-        val surface = view.getInputSurface()
-        virtualDisplay = projection.createVirtualDisplay(
-            "vr-theater",
-            metrics.widthPixels,
-            metrics.heightPixels,
-            metrics.densityDpi,
-            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
-            surface,
-            null,
-            null
-        )
-        view.attachFrameSource()
+        // Ensure the GL side is ready before obtaining the surface
+        view.setOnSurfaceReady { surface ->
+            if (virtualDisplay != null) return@setOnSurfaceReady
+            // Set default buffer size to avoid black frames on some devices
+            view.setDefaultBufferSize(metrics.widthPixels, metrics.heightPixels)
+            virtualDisplay = projection.createVirtualDisplay(
+                "vr-theater",
+                metrics.widthPixels,
+                metrics.heightPixels,
+                metrics.densityDpi,
+                DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+                surface,
+                null,
+                null
+            )
+        }
     }
 
     private fun observeSettings() {
@@ -147,6 +154,7 @@ class OverlayService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         virtualDisplay?.release()
+        mediaProjection?.stop()
         headTracker?.stop()
         overlayView?.let { windowManager.removeView(it) }
         overlayView = null

@@ -11,6 +11,7 @@ class VRRenderer {
     private var uScreenScale = 0
     private var uScreenTilt = 0
     private var uYawPitch = 0
+    private var uTexMatrix = 0
 
     private var eyeSeparation: Float = 0.03f
     private var k1: Float = 0.22f
@@ -45,6 +46,7 @@ class VRRenderer {
         uScreenScale = GLES20.glGetUniformLocation(program, "uScreenScale")
         uScreenTilt = GLES20.glGetUniformLocation(program, "uScreenTilt")
         uYawPitch = GLES20.glGetUniformLocation(program, "uYawPitch")
+        uTexMatrix = GLES20.glGetUniformLocation(program, "uTexMatrix")
         vbo = createBuffer(vertices)
         ibo = createIndexBuffer(indices)
     }
@@ -84,6 +86,9 @@ class VRRenderer {
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
         GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, oesTex)
         GLES20.glUniform1i(uOes, 0)
+
+        // Pass SurfaceTexture transform
+        GLES20.glUniformMatrix4fv(uTexMatrix, 1, false, st, 0)
 
         GLES20.glUniform2f(uYawPitch, yaw, pitch)
         GLES20.glUniform1f(uScreenScale, screenScale)
@@ -186,14 +191,19 @@ class VRRenderer {
             varying vec2 vUv; 
             uniform samplerExternalOES uOes; 
             uniform vec2 uDistort; 
+            uniform mat4 uTexMatrix; 
             void main(){ 
                 vec2 uv = vUv * 2.0 - 1.0; 
                 float r2 = dot(uv, uv); 
                 float factor = 1.0 + uDistort.x * r2 + uDistort.y * r2*r2; 
                 vec2 barrel = uv * factor; 
                 vec2 tuv = (barrel + 1.0) * 0.5; 
-                if (tuv.x < 0.0 || tuv.x > 1.0 || tuv.y < 0.0 || tuv.y > 1.0) discard; 
-                gl_FragColor = texture2D(uOes, tuv); 
+                // Apply SurfaceTexture transform matrix to tuv
+                vec4 tex = uTexMatrix * vec4(tuv, 0.0, 1.0); 
+                vec2 texCoord = tex.xy; 
+                // Clamp instead of discard to avoid black borders on some devices
+                texCoord = clamp(texCoord, 0.001, 0.999);
+                gl_FragColor = texture2D(uOes, texCoord); 
             }
         """
     }

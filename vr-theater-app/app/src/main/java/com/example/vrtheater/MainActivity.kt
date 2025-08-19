@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.*
 import androidx.core.content.getSystemService
+import androidx.activity.compose.BackHandler
 import com.example.vrtheater.launcher.GameScanner
 import com.example.vrtheater.settings.SettingsRepository
 import com.example.vrtheater.ui.LauncherScreen
@@ -24,6 +25,9 @@ import com.example.vrtheater.vr.ControllerMonitor
 import com.example.vrtheater.vr.OverlayService
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var controllerMonitor: ControllerMonitor
+
 
     private val mediaProjectionLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
         if (res.resultCode == RESULT_OK && res.data != null) {
@@ -35,17 +39,19 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         ensureNotificationChannel()
         val repo = SettingsRepository(this)
-        val controllerMonitor = com.example.vrtheater.vr.ControllerMonitor(this)
+        controllerMonitor = ControllerMonitor(this)
         controllerMonitor.start()
 
         setContent {
             MaterialTheme(colorScheme = darkColorScheme()) {
                 val games by remember { mutableStateOf(GameScanner.scanInstalledGames(this)) }
                 var projectionRunning by remember { mutableStateOf(false) }
-                var showSettings by remember { mutableStateOf(false) }
+                var showSettings by remember { mutableStateOf(intent?.getBooleanExtra("show_settings", false) == true) }
 
                 if (showSettings) {
+                    BackHandler { showSettings = false }
                     SettingsScreen(repo)
+                    LaunchedEffect(Unit) { intent?.removeExtra("show_settings") }
                 } else {
                     LauncherScreen(
                         context = this,
@@ -86,5 +92,10 @@ class MainActivity : ComponentActivity() {
             val ch = NotificationChannel(OverlayService.CHANNEL_ID, "VR Projection", NotificationManager.IMPORTANCE_LOW)
             mgr.createNotificationChannel(ch)
         }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (::controllerMonitor.isInitialized) controllerMonitor.stop()
     }
 }

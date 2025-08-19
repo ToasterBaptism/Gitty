@@ -18,6 +18,7 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     private var headTracker: HeadTracker? = null
 
     private var pendingSettings: Settings? = null
+    private var onSurfaceReady: ((Surface) -> Unit)? = null
 
     data class Settings(
         val eyeSeparation: Float,
@@ -30,11 +31,20 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     init {
         setEGLContextClientVersion(2)
         setRenderer(this)
-        renderMode = RENDERMODE_CONTINUOUSLY
+        renderMode = RENDERMODE_WHEN_DIRTY
     }
 
     fun setHeadTracker(tracker: HeadTracker?) {
         headTracker = tracker
+    }
+
+    fun setOnSurfaceReady(cb: (Surface) -> Unit) {
+        onSurfaceReady = cb
+        inputSurface?.let { cb(it) }
+    }
+
+    fun setDefaultBufferSize(width: Int, height: Int) {
+        surfaceTexture?.setDefaultBufferSize(width, height)
     }
 
     fun updateSettings(eyeSeparation: Float, k1: Float, k2: Float, screenScale: Float, screenTilt: Float) {
@@ -42,11 +52,7 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     }
 
     fun getInputSurface(): Surface {
-        if (inputSurface == null) {
-            oesTexId = createOesTexture()
-            surfaceTexture = SurfaceTexture(oesTexId)
-            inputSurface = Surface(surfaceTexture)
-        }
+        checkNotNull(inputSurface) { "Surface not ready yet" }
         return inputSurface!!
     }
 
@@ -57,11 +63,20 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
         rendererImpl = VRRenderer()
         rendererImpl.init()
+        // Create OES texture and SurfaceTexture on GL thread to ensure a current context exists
+        if (inputSurface == null) {
+            oesTexId = createOesTexture()
+            surfaceTexture = SurfaceTexture(oesTexId)
+            inputSurface = Surface(surfaceTexture)
+            attachFrameSource()
+            onSurfaceReady?.invoke(inputSurface!!)
+        }
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
         GLES20.glViewport(0, 0, width, height)
         rendererImpl.onSurfaceChanged(width, height)
+        // If VirtualDisplay size is different, OverlayService will call setDefaultBufferSize
     }
 
     override fun onDrawFrame(gl: GL10?) {
@@ -87,5 +102,22 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
         GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
         return tex[0]
+    }
+
+    override fun onDetachedFromWindow() {
+        // Avoid retaining external references
+        onSurfaceReady = null
+        queueEvent {
+            surfaceTexture?.setOnFrameAvailableListener(null)
+            surfaceTexture?.release()
+            inputSurface?.release()
+            inputSurface = null
+            surfaceTexture = null
+            if (oesTexId != 0) {
+                GLES20.glDeleteTextures(1, intArrayOf(oesTexId), 0)
+                oesTexId = 0
+            }
+        }
+        super.onDetachedFromWindow()
     }
 }
