@@ -23,6 +23,13 @@ class ControllerMonitor(context: Context) : InputManager.InputDeviceListener {
     override fun onInputDeviceRemoved(deviceId: Int) { refresh() }
     override fun onInputDeviceChanged(deviceId: Int) { refresh() }
 
+    /**
+     * Refreshes the list of connected game controller device IDs.
+     *
+     * Queries the system InputManager for all device IDs, resolves each to an InputDevice,
+     * filters out nulls and devices that are not game controllers (not `SOURCE_GAMEPAD` or
+     * `SOURCE_JOYSTICK`), and replaces the `connectedControllers` list with the resulting IDs.
+     */
     private fun refresh() {
         val ids = inputManager.inputDeviceIds
         connectedControllers = ids.toList().mapNotNull { id ->
