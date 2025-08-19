@@ -105,7 +105,8 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
     }
 
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
+        // Avoid retaining external references
+        onSurfaceReady = null
         queueEvent {
             surfaceTexture?.setOnFrameAvailableListener(null)
             surfaceTexture?.release()
@@ -117,5 +118,6 @@ class VRGLView(context: Context) : GLSurfaceView(context), GLSurfaceView.Rendere
                 oesTexId = 0
             }
         }
+        super.onDetachedFromWindow()
     }
 }
